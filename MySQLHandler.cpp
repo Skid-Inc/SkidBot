@@ -65,7 +65,7 @@ int MySQLHandler::mysqlConnect (void)
 	}
 
 	// Attempts to connect to the database
-	connection = mysql_real_connect (connection, "localhost", "root", "SkidBot", "1234567890", 0, NULL, 0);
+	connection = mysql_real_connect (connection, "localhost", "USER", "PASS", "DATABASE", 0, NULL, 0);
 	if (connection)
 	{
 		logger->log (" MYSQL: MySQL connection successful.\n");

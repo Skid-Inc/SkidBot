@@ -240,7 +240,7 @@ void *GIRCThread (void *)
 			{
 				girc_recv_buffer.empty ();
 				girc_sock = socket(AF_INET, SOCK_STREAM, 0);
-				girc_server = gethostbyname("199.9.253.119");
+				girc_server = gethostbyname("irc.chat.twitch.tv");
 				if ((girc_sock >= 0) && (girc_server != NULL))
 				{
 					// Sets up the server address
