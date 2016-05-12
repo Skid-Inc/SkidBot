@@ -34,6 +34,7 @@ int irc_sock;
 int irc_port = DEFAULT_IRC_PORT;
 struct sockaddr_in irc_serv_addr;
 hostent *irc_server;
+std::chrono::high_resolution_clock::time_point irc_timeout;
 
 std::deque<std::string> irc_recv_buffer (20);
 
@@ -44,6 +45,7 @@ int girc_sock;
 int girc_port = DEFAULT_IRC_PORT;
 struct sockaddr_in girc_serv_addr;
 hostent *girc_server;
+std::chrono::high_resolution_clock::time_point girc_timeout;
 
 std::deque<std::string> girc_recv_buffer (20);
 
@@ -81,6 +83,7 @@ void *IRCThread (void *)
 					if (irc_return >= 0)
 					{
 						irc_task = IRC_AUTH;
+						irc_timeout = hrc_now;
 						logger->log (" IRCThread: I've connected to the IRC server.\n");
 						break;
 					}
@@ -133,6 +136,7 @@ void *IRCThread (void *)
 							logger->debugf (DEBUG_DETAILED, " IRCThread: I received: %s\r\n", message.c_str());
 							last_found = found+2;
 							found = received.find ("\r\n", last_found);
+							irc_timeout = hrc_now;
 						}
 					}
 					else if ((irc_return != -EAGAIN) && (irc_return != -EWOULDBLOCK) && (irc_return != -1) && (irc_return != 0))
@@ -141,6 +145,13 @@ void *IRCThread (void *)
 						logger->logf (" IRCThread: I had a problem reading the IRC socket, so I'm reconnecting, reason: %s.\n", strerror(errno));
 						irc_task = IRC_CLOSE;
 					}
+				}
+				
+				// Check if we have lost comms, no messages after 10 minutes (ping should be every 5)
+				if ((hrc_now - irc_timeout) > std::chrono::minutes(10))
+				{
+					logger->log (" IRCThread: Master, the IRC socket has been quiet for 10 minutes, I'm going to reconnect incase the socket is dread.\n");
+					irc_task = IRC_CLOSE;
 				}
 			}
 			break;
@@ -253,6 +264,7 @@ void *GIRCThread (void *)
 					if (girc_return >= 0)
 					{
 						girc_task = IRC_AUTH;
+						girc_timeout = hrc_now;
 						logger->log (" GIRCThread: I've connected to the groups IRC server.\n");
 						break;
 					}
@@ -303,6 +315,7 @@ void *GIRCThread (void *)
 							logger->debugf (DEBUG_DETAILED, " GIRCThread: I received on groups: %s\r\n", message.c_str());
 							last_found = found+2;
 							found = received.find ("\r\n", last_found);
+							girc_timeout = hrc_now;
 						}
 					}
 					else if ((girc_return != -EAGAIN) && (girc_return != -EWOULDBLOCK) && (girc_return != -1) && (girc_return != 0))
@@ -311,6 +324,13 @@ void *GIRCThread (void *)
 						logger->logf (" GIRCThread: I had a problem reading the groups IRC socket, so I'm reconnecting, reason: %s.\n", strerror(errno));
 						girc_task = IRC_CLOSE;
 					}
+				}
+				
+				// Check if we have lost comms, no messages after 10 minutes (ping should be every 5)
+				if ((hrc_now - girc_timeout) > std::chrono::minutes(10))
+				{
+					logger->log (" GIRCThread: Master, the groups IRC socket has been quiet for 10 minutes, I'm going to reconnect incase the socket is dead.\n");
+					girc_task = IRC_CLOSE;
 				}
 			}
 			break;

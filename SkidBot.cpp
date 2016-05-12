@@ -24,7 +24,7 @@
 #include "IRCThread.hpp"
 #include "TwitchAPIThread.hpp"
 
-#define VERSION "0.30"
+#define VERSION "0.31"
 
 // Local function prototypes
 void signalHandler (int signum);
@@ -49,6 +49,8 @@ std::vector<std::string> users_chatted;		// Holds a list of users that have chat
 
 std::chrono::high_resolution_clock::time_point current_time;
 std::chrono::high_resolution_clock::time_point anti_spam;
+std::chrono::high_resolution_clock::time_point no_spoilers;
+bool no_spoilers_running = false;
 
 extern std::deque<std::string> irc_recv_buffer;
 extern std::deque<std::string> girc_recv_buffer;
@@ -125,6 +127,7 @@ int main(int argc, char **argv)
 
 	current_time = hrc_now;
 	anti_spam = current_time;
+	no_spoilers_running = false;
 
 	while (closing_process != 1)
 	{
@@ -327,6 +330,20 @@ int main(int argc, char **argv)
 												}
 											}
 										}
+										
+										// Spoiler note
+										if ((user.compare("n_skid11") == 0) && (boost::iequals(chat_remainder, "no spoilers start")))
+										{
+											logger->logf (": Starting to post no spoiler messages. :)\n");
+											send_room (room, "Acknowledged, starting to post no spoiler messages every 5 minutes. :)");
+											no_spoilers_running = true;
+										}
+										if ((user.compare("n_skid11") == 0) && (boost::iequals(chat_remainder, "no spoilers stop")))
+										{
+											logger->logf (": I will no longer post no spoiler messages. :)\n");
+											send_room (room, "Acknowledged, I will no longer post no spoiler messages. :)");
+											no_spoilers_running = false;
+										}
 									}
 								}
 								else if ((user.compare("n_skid11") == 0) && (boost::iequals(chat, "Good SkidBot")))
@@ -367,7 +384,7 @@ int main(int argc, char **argv)
 					// Check for user mode change message	// :jtv MODE #n_skid11 +o paulscelus
 					else if ((message.length() > 9) && (message.substr(5, 4).compare("MODE") == 0))
 					{
-						logger->log (": I've found a MODE change for user.\n");
+						logger->debug (DEBUG_MINIMAL, ": I've found a MODE change for user.\n");
 					}
 					
 					// Check for user list message			// :skidbot.tmi.twitch.tv 353 skidbot = #n_skid11 :arceusthepokemon wolf7th martinferrer ixtapa_ verenthes greenplane htbrdd ebula_viruss turkz813 jachunter guntherdw conjur0 dcirusc30 poewinter gone_nutty ptx3 loganfxcrafter strayparaSkidBot: I received: t = #zeekdageek :skidbot
@@ -457,6 +474,18 @@ int main(int argc, char **argv)
 						logger->debug (DEBUG_STANDARD, ": Playing ping pong with the groups servers.\n");
 						gsend_command ("PONG", message.substr(5));
 					}
+				}
+			}
+			
+			
+			// TODO: WORK OUT A BETTER WAY OF DOING THIS WITHOUT HARD CODING THE ROOM
+			if (no_spoilers_running)
+			{
+				if ((current_time - no_spoilers) > std::chrono::minutes(5))
+				{
+					logger->log (": Posting no spoilers message.\n");
+					send_room ("#n_skid11", "My master would like to do his first run blind, so please no spoilers or hints etc, thank you :)");
+					no_spoilers = current_time;
 				}
 			}
 		}
