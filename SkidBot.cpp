@@ -178,7 +178,7 @@ int main(int argc, char **argv)
 							// Checks if this user has posted before
 							bool user_chatted = std::binary_search(users_chatted.begin(), users_chatted.end(), user);
 							
-							if ((!user_chatted) && (boost::regex_search (chat.c_str(), boost::regex("[^\\s.].[^\\s.]"))))
+							if ((!user_chatted) && (boost::regex_search (chat.c_str(), boost::regex("[^\\s.]\\.[^\\s.]{2,}"))))
 							{
 								logger->logf (": Someone posted a link without having spoken in chat first, spam protection active.\n");
 								std::string temp = "/timeout ";
@@ -206,7 +206,7 @@ int main(int argc, char **argv)
 							// Checks if this user has posted before
 							bool user_chatted = std::binary_search(users_chatted.begin(), users_chatted.end(), user);
 							
-							if ((!user_chatted) && (boost::regex_search (chat.c_str(), boost::regex("[^\\s.]\\.[^\\s.]"))))
+							if ((!user_chatted) && (boost::regex_search (chat.c_str(), boost::regex("[^\\s.]\\.[^\\s.]{2,}"))))
 							{
 								logger->logf (": Someone posted a link without having spoken in chat first, spam protection active.\n");
 								std::string temp = "/timeout ";
