@@ -4,6 +4,8 @@
 
 #include <string>
 #include <curl/curl.h>
+#include <boost/regex.hpp>
+#include <boost/algorithm/string.hpp>
 
 #include "TwitchAPIThread.hpp"
 #include "SkidBot.hpp"
@@ -140,21 +142,30 @@ void *TwitchAPIThread (void *)
 				}
 				else if (last_follower.compare(latest_follower) != 0)
 				{
-					previous_follower = last_follower;
-					last_follower = latest_follower;
-					std::string temp = "/w ";
-					temp.append (latest_follower);
-					temp.append (" ");
-					temp.append (displayname);
-					temp.append (" my master would like me to thank you for following, while he doesn't announce such things on stream he does still appreciate it, so thank you. :)");
-					gsend_room ("#jtv", temp);
-					temp.clear ();
-					temp.append ("/w n_skid11 Master, ");
-					temp.append (displayname);
-					temp.append (" just followed, thought you should know. :)");
-					gsend_room ("#jtv", temp);
 					
-					logger->logf (" TwitchAPIThread: I've found a new follower, %s.\n", displayname.c_str());
+					// Confirm the name is valid and that something hasn't messed up with the API call
+					if ((!boost::regex_search (latest_follower.c_str(), boost::regex("[^a-zA-Z0-9_]"))) && ((!boost::regex_search (last_follower.c_str(), boost::regex("[^a-zA-Z0-9_]")))))
+					{
+						// Confirm the display name is valid and that something hasn't messed up with the API call
+						if (!boost::regex_search (displayname.c_str(), boost::regex("[^a-zA-Z0-9_]")))
+						{
+							previous_follower = last_follower;
+							last_follower = latest_follower;
+							std::string temp = "/w ";
+							temp.append (latest_follower);
+							temp.append (" ");
+							temp.append (displayname);
+							temp.append (" my master would like me to thank you for following, while he doesn't announce such things on stream he does still appreciate it, so thank you. :)");
+							gsend_room ("#jtv", temp);
+							temp.clear ();
+							temp.append ("/w n_skid11 Master, ");
+							temp.append (displayname);
+							temp.append (" just followed, thought you should know. :)");
+							gsend_room ("#jtv", temp);
+
+							logger->logf (" TwitchAPIThread: I've found a new follower, %s.\n", displayname.c_str());
+						}
+					}
 				}
 			}
 		}
