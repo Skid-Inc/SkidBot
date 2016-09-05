@@ -20,7 +20,9 @@ pthread_mutex_t tapi_mutex = PTHREAD_MUTEX_INITIALIZER;
 // API variables
 std::string curl_buffer;
 std::string last_follower = "";
+std::string last_displayname = "";
 std::string previous_follower = "";
+std::string previous_displayname = "";
 
 // Variables that SkidBot needs to keep track of
 std::chrono::high_resolution_clock::time_point last_channel_request;
@@ -99,12 +101,13 @@ void *TwitchAPIThread (void *)
 				if (last_follower.length() == 0)
 				{
 					last_follower = latest_follower;
+					last_displayname = displayname;
 					std::string temp = "/w n_skid11 Master, the last follower was ";
 					temp.append (displayname);
 					temp.append (".");
 					gsend_room ("#jtv", temp);
 					
-					logger->logf (" TwitchAPIThread: I've found the last follower, %s.\n", displayname.c_str());
+					logger->logf (" TwitchAPIThread: I've found the last follower, %s.\n", last_displayname.c_str());
 					
 					// Get the follower before last
 					start_username = curl_buffer.find ("\"name\":\"", end_displayname) + 8;
@@ -117,13 +120,19 @@ void *TwitchAPIThread (void *)
 					}
 					if ((start_displayname != std::string::npos) && (end_displayname != std::string::npos))
 					{
-						displayname = curl_buffer.substr (start_displayname, end_displayname - start_displayname);
+						previous_displayname = curl_buffer.substr (start_displayname, end_displayname - start_displayname);
 					}
 					
-					logger->logf (" TwitchAPIThread: I've found the follower before last, %s.\n", displayname.c_str());
+					logger->logf (" TwitchAPIThread: I've found the follower before last, %s.\n", previous_displayname.c_str());
 				}
 				else if (previous_follower.compare(latest_follower) == 0)
 				{
+					// Send a message and overwrite the last follower
+					logger->logf (" TwitchAPIThread: Master, the last person to follow unfollowed :(, %s.\n", last_displayname.c_str());
+					last_follower = latest_follower;
+					last_displayname = displayname;
+					logger->debugf (DEBUG_STANDARD, " TwitchAPIThread: I've made the follower before last the last follower, %s.\n", last_displayname.c_str());
+					
 					// Get the follower before last
 					start_username = curl_buffer.find ("\"name\":\"", end_displayname) + 8;
 					end_username = curl_buffer.find ("\",", start_username);
@@ -135,10 +144,9 @@ void *TwitchAPIThread (void *)
 					}
 					if ((start_displayname != std::string::npos) && (end_displayname != std::string::npos))
 					{
-						displayname = curl_buffer.substr (start_displayname, end_displayname - start_displayname);
+						previous_displayname = curl_buffer.substr (start_displayname, end_displayname - start_displayname);
 					}
-					
-					logger->logf (" TwitchAPIThread: Master, the last person to follow unfollowed :(, %s.\n", displayname.c_str());
+					logger->debugf (DEBUG_STANDARD, " TwitchAPIThread: I've found the follower before last, %s.\n", previous_displayname.c_str());
 				}
 				else if (last_follower.compare(latest_follower) != 0)
 				{
@@ -151,7 +159,8 @@ void *TwitchAPIThread (void *)
 						{
 							previous_follower = last_follower;
 							last_follower = latest_follower;
-							std::string temp = "/w ";
+							std::string temp = "";
+							temp.append ("/w ");
 							temp.append (latest_follower);
 							temp.append (" ");
 							temp.append (displayname);
