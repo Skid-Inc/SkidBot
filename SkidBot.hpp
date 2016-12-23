@@ -111,4 +111,12 @@ typedef union float_bytes
 	unsigned char bytes[4];
 } float_bytes;
 
+typedef struct roll_data
+{
+	uint32_t roll = 0;
+	std::string text;
+	bool discarded = false;
+	bool exploded = false;
+} roll_data;
+
 #endif

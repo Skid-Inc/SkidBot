@@ -15,6 +15,7 @@
 #include <string>
 #include <vector>
 #include <deque>
+#include <random>
 #include <boost/regex.hpp>
 #include <boost/algorithm/string.hpp>
 
@@ -27,6 +28,11 @@
 #define VERSION "0.31"
 
 // Local function prototypes
+std::string trim (std::string _str);
+std::string parseDouble (double _value);
+double rollQuerySplitSubAdd (std::string _query, std::string *_roll_text);
+double rollQuerySplitMulDiv (std::string _query, std::string *_roll_text);
+double rollQueryParse (std::string _query, std::string *_roll_text);
 void signalHandler (int signum);
 
 // Global Varible
@@ -58,6 +64,10 @@ extern std::deque<std::string> girc_recv_buffer;
 // API external variables
 extern std::string current_title;
 extern std::string current_game;
+
+// Random variables
+std::random_device dice;
+std::string game_master = "n_skid11";
 
 int main(int argc, char **argv)
 {
@@ -114,16 +124,16 @@ int main(int argc, char **argv)
 	logger->log (": I'm starting my IRC thread so I can connect to twitch.\n");
 	pthread_create (&irc_thread, NULL, IRCThread, NULL);
 	sleep (2);
-	
+
 	// Creates the groups irc thread
 	logger->log (": I'm starting my groups IRC thread so I can connect to twitch.\n");
 	pthread_create (&girc_thread, NULL, GIRCThread, NULL);
 	sleep (2);
 
 	// Creates the twitch api thread
-	logger->log (": I'm starting my Twitch API thread so I can monitor the channel.\n");
-	pthread_create (&tapi_thread, NULL, TwitchAPIThread, NULL);
-	sleep (1);
+	//logger->log (": I'm starting my Twitch API thread so I can monitor the channel.\n");
+	//pthread_create (&tapi_thread, NULL, TwitchAPIThread, NULL);
+	//sleep (1);
 
 	current_time = hrc_now;
 	anti_spam = current_time;
@@ -174,10 +184,10 @@ int main(int argc, char **argv)
 						{
 							chat = message.substr(data_location + 9);
 							logger->logf (": I found a user action in room: %s, user: %s, action: %s\n", room.c_str(), user.c_str(), chat.c_str());
-							
+
 							// Checks if this user has posted before
 							bool user_chatted = std::binary_search(users_chatted.begin(), users_chatted.end(), user);
-							
+
 							if ((!user_chatted) && (boost::regex_search (chat.c_str(), boost::regex("[^\\s.]\\.[^\\s.]{2,}"))))
 							{
 								logger->logf (": Someone posted a link without having spoken in chat first, spam protection active.\n");
@@ -202,10 +212,10 @@ int main(int argc, char **argv)
 						{
 							chat = message.substr(data_location + 1);
 							logger->debugf (DEBUG_MINIMAL, ": I found a chat message in room: %s, user: %s, message: %s\n", room.c_str(), user.c_str(), chat.c_str());
-							
+
 							// Checks if this user has posted before
 							bool user_chatted = std::binary_search(users_chatted.begin(), users_chatted.end(), user);
-							
+
 							if ((!user_chatted) && (boost::regex_search (chat.c_str(), boost::regex("[^\\s.]\\.[^\\s.]{2,}"))))
 							{
 								logger->logf (": Someone posted a link without having spoken in chat first, spam protection active.\n");
@@ -221,15 +231,15 @@ int main(int argc, char **argv)
 								if (boost::iequals(chat.substr(0, 9), "SkidBot, "))
 								{
 									// Split the message apart
-									std::string chat_remainder = chat.substr(9);
+									std::string chat_remainder = chat.substr (9);
 									std::vector<std::string> words;
-									std::istringstream iss(chat_remainder);
-									
+									std::istringstream iss (chat_remainder);
+
 									for (std::string token; std::getline(iss, token, ' ');)
 									{
-										words.push_back(std::move(token));
+										words.push_back (std::move(token));
 									}
-									
+
 									// If there are other words, try and work out the requested command
 									if (words.size() > 0)
 									{
@@ -301,7 +311,7 @@ int main(int argc, char **argv)
 											if ((current_time - anti_spam) > std::chrono::seconds(10))
 											{
 												logger->logf (": Giving the channels rules to %s. :)\n", user.c_str());
-												send_room (room, "The rules for my masters channels are as follows, [1] Always be respectful to other people. [2] Seriously I'll instantly ban you if your not respectful to EVERYONE. [3] Please avoid spoilers. [4] I like to work things out myself, so if I miss something or don't say \"Hey, Chat, what does....\" then please don't tell me. [5] Don't spam. [6] I reserve the right to ban you for any other reason not covered here, just so you know :P");
+												send_room (room, "The rules for my masters channels are as follows, [1] Always be respectful to other people. [2] Be respectful to other peoples opinions, just because someone else's opinion doesn't match your own, does not invalidate ether. [3] Please avoid spoilers. [4] I like to work things out myself, so if I miss something or don't say \"Hey, Chat, what does....\" then please don't tell me. [5] Don't spam, this includes emote spam.");
 												anti_spam = current_time;
 											}
 										}
@@ -314,8 +324,8 @@ int main(int argc, char **argv)
 												anti_spam = current_time;
 											}
 										}
-										
-										
+
+
 										// Fixed commands for rocksmith
 										if (boost::iequals(current_game, "Rocksmith 2014"))
 										{
@@ -330,7 +340,7 @@ int main(int argc, char **argv)
 												}
 											}
 										}
-										
+
 										// Spoiler note
 										if ((user.compare("n_skid11") == 0) && (boost::iequals(chat_remainder, "no spoilers start")))
 										{
@@ -344,6 +354,30 @@ int main(int argc, char **argv)
 											send_room (room, "Acknowledged, I will no longer post no spoiler messages. :)");
 											no_spoilers_running = false;
 										}
+
+										// Change the game master
+										if ((user.compare("n_skid11") == 0) && ((boost::iequals(words[0], "change")) || (boost::iequals(words[0], "set"))) && ((boost::iequals(words[1], "gm")) || (boost::iequals(words[1], "dm"))))
+										{
+											uint8_t target_word = 2;
+											if (boost::iequals(words[2], "to"))
+											{
+												target_word = 3;
+											}
+											logger->logf (": I will change the assigned game master to %s.\n", words[target_word].c_str());
+											game_master = words[target_word];
+											std::string message = "Acknowledged, I will change the assigned game master to ";
+											message += words[target_word];
+											message += ". :)";
+											send_room (room, message);
+										}
+										else if ((user.compare("n_skid11") == 0) && (boost::iequals(words[0], "who")) && ((boost::iequals(words.back(), "gm")) || (boost::iequals(words.back(), "dm"))))
+										{
+											logger->logf (": Reporting that the current game master is %s.\n", game_master.c_str());
+											std::string message = "The currently assigned game master is ";
+											message += game_master;
+											message += ". :)";
+											send_room (room, message);
+										}
 									}
 								}
 								else if ((user.compare("n_skid11") == 0) && (boost::iequals(chat, "Good SkidBot")))
@@ -351,7 +385,116 @@ int main(int argc, char **argv)
 									logger->log (": My master praised me ^_^.\n");
 									send_room (room, "^_^");
 								}
-								
+
+								// Check to see if this is a dice roll
+								else if ((boost::iequals(chat.substr(0, 6), "!roll ")) || (boost::iequals(chat.substr(0, 3), "!r ")) || (boost::iequals(chat.substr(0, 8), "!gmroll ")) || (boost::iequals(chat.substr(0, 5), "!gmr ")))
+								{
+									// Pull the roll query and set if this is a gm roll or not
+									std::string roll_query;
+									bool is_gm_roll = false;
+									if (boost::iequals(chat.substr(0, 6), "!roll "))
+									{
+										roll_query = chat.substr(6);
+										logger->debugf (DEBUG_MINIMAL, ": Someone is rolling %s\n", roll_query.c_str());
+									}
+									else if (boost::iequals(chat.substr(0, 3), "!r "))
+									{
+										roll_query = chat.substr(3);
+										logger->debugf (DEBUG_MINIMAL, ": Someone is rolling %s\n", roll_query.c_str());
+									}
+									else if (boost::iequals(chat.substr(0, 8), "!gmroll "))
+									{
+										roll_query = chat.substr(8);
+										is_gm_roll = true;
+										logger->debugf (DEBUG_MINIMAL, ": Someone is gm rolling %s\n", roll_query.c_str());
+									}
+									else if (boost::iequals(chat.substr(0, 5), "!gmr "))
+									{
+										roll_query = chat.substr(5);
+										is_gm_roll = true;
+										logger->debugf (DEBUG_MINIMAL, ": Someone is gm rolling %s\n", roll_query.c_str());
+									}
+
+									// Prepare the variables used to process the roll
+									std::string roll_text;
+									double roll_result;
+									std::string roll_reason = "some dice";
+
+									// See if there is a reason for the roll
+									std::size_t last_add = roll_query.find_last_of ('+');
+									std::size_t last_sub = roll_query.find_last_of ('-');
+									std::size_t last_mul = roll_query.find_last_of ('*');
+									std::size_t last_div = roll_query.find_last_of ('/');
+									std::size_t first_space = roll_query.find (' ');
+									if ((last_add == std::string::npos) && (last_sub == std::string::npos) && (last_mul == std::string::npos) && (last_div == std::string::npos))
+									{
+										if (first_space != std::string::npos)
+										{
+											roll_reason = roll_query.substr (first_space + 1);
+											roll_query = roll_query.substr (0, roll_query.length() - roll_reason.length() - 1);
+										}
+									}
+									else
+									{
+										std::size_t highest_position = 0;
+										if ((last_add != std::string::npos) && (last_add > highest_position))
+										{
+											highest_position = last_add;
+										}
+										if ((last_sub != std::string::npos) && (last_sub > highest_position))
+										{
+											highest_position = last_sub;
+										}
+										if ((last_mul != std::string::npos) && (last_mul > highest_position))
+										{
+											highest_position = last_mul;
+										}
+										if ((last_div != std::string::npos) && (last_div > highest_position))
+										{
+											highest_position = last_div;
+										}
+
+										// Find the first space after the last opperator
+										first_space = roll_query.find (' ', highest_position + 2);
+										if (first_space != std::string::npos)
+										{
+											roll_reason = roll_query.substr (first_space + 1);
+											roll_query = roll_query.substr (0, roll_query.length() - roll_reason.length() - 1);
+										}
+									}
+
+									// Parse the query
+									roll_result = rollQuerySplitSubAdd (roll_query, &roll_text);
+
+
+									// Send the results of the roll
+									if (!is_gm_roll)
+									{
+										std::string temp;
+										temp += user;
+										temp += " just rolled ";
+										temp += roll_reason;
+										temp += ": ";
+										temp += roll_text;
+										temp += " = ";
+										temp += parseDouble(roll_result);
+										send_room (room, temp);
+									}
+									else
+									{
+										std::string temp = "/w ";
+										temp += game_master;
+										temp += " Game Master, ";
+										temp += user;
+										temp += " just rolled ";
+										temp += roll_reason;
+										temp += ": ";
+										temp += roll_text;
+										temp += " = ";
+										gsend_room ("#jtv", temp);
+									}
+								}
+
 								// Commands used when streaming rocksmith
 								// Track list
 								// Requests enable / on
@@ -360,7 +503,7 @@ int main(int argc, char **argv)
 								// Requests pop
 								// Requests view
 								// Requests clear
-								
+
 								// If the user hasn't chatted before, add them to the list
 								if (!user_chatted)
 								{
@@ -380,18 +523,18 @@ int main(int argc, char **argv)
 						logger->debug (DEBUG_STANDARD, ": Playing ping pong with the servers.\n");
 						send_command ("PONG", message.substr(5));
 					}
-					
+
 					// Check for user mode change message	// :jtv MODE #n_skid11 +o paulscelus
 					else if ((message.length() > 9) && (message.substr(5, 4).compare("MODE") == 0))
 					{
 						logger->debug (DEBUG_MINIMAL, ": I've found a MODE change for user.\n");
 					}
-					
+
 					// Check for user list message			// :skidbot.tmi.twitch.tv 353 skidbot = #n_skid11 :arceusthepokemon wolf7th martinferrer ixtapa_ verenthes greenplane htbrdd ebula_viruss turkz813 jachunter guntherdw conjur0 dcirusc30 poewinter gone_nutty ptx3 loganfxcrafter strayparaSkidBot: I received: t = #zeekdageek :skidbot
 					else if ((message.length() > 37) && (message.substr(0, 37).compare(":skidbot.tmi.twitch.tv 353 skidbot = ") == 0))
 					{
 						logger->logf (": I've found the channels NAMES list.\n");
-						
+
 						data_location = message.find (":", cmd_location);
 						if (data_location != std::string::npos)
 						{
@@ -400,7 +543,7 @@ int main(int argc, char **argv)
 							chat = message.substr(data_location + 1);
 						}
 					}
-					
+
 					// Check for join and part messages
 					else
 					{
@@ -444,8 +587,8 @@ int main(int argc, char **argv)
 					}
 				}
 			}
-			
-			
+
+
 			// Handles any messages in the groups queue
 			while (girc_recv_buffer.size() > 0)
 			{
@@ -476,8 +619,8 @@ int main(int argc, char **argv)
 					}
 				}
 			}
-			
-			
+
+
 			// TODO: WORK OUT A BETTER WAY OF DOING THIS WITHOUT HARD CODING THE ROOM
 			if (no_spoilers_running)
 			{
@@ -519,29 +662,546 @@ int main(int argc, char **argv)
 		}
 		break;
 	}
-	
+
 	// Close all the other threads
 	irc_running = false;
 	logger->log (": I'm waiting for the irc thread to end.\n");
 	pthread_join (irc_thread, NULL);
 	logger->log (": I'm waiting for the groups irc thread to end.\n");
 	pthread_join (girc_thread, NULL);
-	
-	lock (tapi_mutex);
-	tapi_running = false;
-	release (tapi_mutex);
-	logger->log (": I'm waiting for the Twitch api thread to end.\n");
-	pthread_join (tapi_thread, NULL);
-	
+
+	//lock (tapi_mutex);
+	//tapi_running = false;
+	//release (tapi_mutex);
+	//logger->log (": I'm waiting for the Twitch api thread to end.\n");
+	//pthread_join (tapi_thread, NULL);
+
 	// Clear any vectors or dynamic arrays
 	users_chatted.clear ();
-	
+
 	logger->log (": I have closed.\n");
 
 	delete mysql;
 	delete logger;
 
 	return 0;
+}
+
+// Strips whitespace from the begining and end of the string
+std::string trim (std::string _str)
+{
+	std::size_t first = _str.find_first_not_of (' ');
+	std::size_t last = _str.find_last_not_of (' ');
+	return _str.substr (first, (last - first + 1));
+}
+
+// Converts a double into a string and removes trailing 0s
+std::string parseDouble (double _value)
+{
+	char buffer[100];
+	memset (buffer, 0, 100);
+	snprintf (buffer, 100, "%g", _value);
+	std::string result = buffer;
+	return result;
+}
+
+// TODO: Add order of opperations, brackes
+// TODO: Add !p penetrating exploding dice, after each exploded roll, sub 1 for that roll, IE (6, 6, 5 becomes, 6, 6-1, 5-2)
+// TODO: Add rerolling dice, r<2 (rerolls 1s or 2s) r2r4 (rerolls 2s or 4s)
+// TODO: FATE Dice??!!
+// TODO: Add basic math functions (tie in with order of opperations, brackes
+// TODO: Group rolls ({4d6+3d8}hk1) will keep the highest of all dice, ({4d6},{3d8}hk1) will keep the highest group
+
+// Splits apart a roll query on a minus sign, then processes the result
+double rollQuerySplitSubAdd (std::string _query, std::string *_roll_text)
+{
+	// Split the message apart
+	std::string text_return;
+	std::vector<std::string> sub_add_parts;
+	std::vector<char> sub_add_ops;
+	std::string part;
+	uint32_t t;
+	std::size_t last_pos = 0;
+	for (t = 0; t < _query.length(); t++)
+	{
+		char c = _query.at(t);
+		// Check characture for -
+		if (c == '-')
+		{
+			// Split the query at opperator and add it vector
+			part = _query.substr(last_pos, t - last_pos);
+			sub_add_parts.push_back (trim(part));
+			sub_add_ops.push_back ('-');
+			last_pos = t + 1;
+		}
+		// Else check characture for +
+		else if (c == '+')
+		{
+			// Split the query at opperator and add it vector
+			part = _query.substr(last_pos, t - last_pos);
+			sub_add_parts.push_back (trim(part));
+			sub_add_ops.push_back ('+');
+			last_pos = t + 1;
+		}
+	}
+	// Add the last part of the query to vector
+	part = _query.substr(last_pos, t - last_pos);
+	sub_add_parts.push_back (trim(part));
+
+	// If there is just one element send it on
+	if (sub_add_parts.size() == 1)
+	{
+		logger->debugf (DEBUG_DETAILED, ": SA Skip %s\n", sub_add_parts[0].c_str());
+		return rollQuerySplitMulDiv (sub_add_parts[0], &*_roll_text);
+	}
+	else if (sub_add_parts.size() > 1)
+	{
+		// Parse the first value
+		logger->debugf (DEBUG_DETAILED, ": SA Start %s\n", sub_add_parts[0].c_str());
+		double temp_value = rollQuerySplitMulDiv (sub_add_parts[0], &text_return);
+		*_roll_text = text_return;
+
+		// Parse every other value and subtract or add them
+		uint8_t sub_add_t;
+		for (sub_add_t = 1; sub_add_t < sub_add_parts.size(); sub_add_t++)
+		{
+			if (sub_add_ops[sub_add_t-1] == '-')
+			{
+				logger->debugf (DEBUG_DETAILED, ": Sub %s\n", sub_add_parts[sub_add_t].c_str());
+				temp_value -= rollQuerySplitMulDiv (sub_add_parts[sub_add_t], &text_return);
+				*_roll_text += " -";
+				*_roll_text += text_return;
+			}
+			else
+			{
+				logger->debugf (DEBUG_DETAILED, ": Add %s\n", sub_add_parts[sub_add_t].c_str());
+				temp_value += rollQuerySplitMulDiv (sub_add_parts[sub_add_t], &text_return);
+				*_roll_text += " +";
+				*_roll_text += text_return;
+			}
+		}
+		return temp_value;
+	}
+
+	return 0;
+}
+
+// Splits apart a roll query on a multiply sign, then processes the result
+double rollQuerySplitMulDiv (std::string _query, std::string *_roll_text)
+{
+	// Split the message apart
+	std::string text_return;
+	std::vector<std::string> mul_div_parts;
+	std::vector<char> mul_div_ops;
+	std::string part;
+	uint32_t t;
+	std::size_t last_pos = 0;
+	for (t = 0; t < _query.length(); t++)
+	{
+		char c = _query.at(t);
+		// Check characture for -
+		if (c == '*')
+		{
+			// Split the query at opperator and add it vector
+			part = _query.substr(last_pos, t - last_pos);
+			mul_div_parts.push_back (trim(part));
+			mul_div_ops.push_back ('*');
+			last_pos = t + 1;
+		}
+		// Else check characture for +
+		else if (c == '/')
+		{
+			// Split the query at opperator and add it vector
+			part = _query.substr(last_pos, t - last_pos);
+			mul_div_parts.push_back (trim(part));
+			mul_div_ops.push_back ('/');
+			last_pos = t + 1;
+		}
+	}
+	// Add the last part of the query to vector
+	part = _query.substr(last_pos, t - last_pos);
+	mul_div_parts.push_back (trim(part));
+
+	// If there is just one element send it on
+	if (mul_div_parts.size() == 1)
+	{
+		logger->debugf (DEBUG_DETAILED, ": MD Skip %s\n", mul_div_parts[0].c_str());
+		double result = rollQueryParse (mul_div_parts[0], &text_return);
+		*_roll_text = text_return;
+		return result;
+	}
+	else if (mul_div_parts.size() > 1)
+	{
+		// Parse the first value
+		logger->debugf (DEBUG_DETAILED, ": MD Start %s\n", mul_div_parts[0].c_str());
+		double temp_value = rollQueryParse (mul_div_parts[0], &text_return);
+		*_roll_text = text_return;
+
+		// Parse every other value and multiply or divid them
+		uint8_t mul_div_t;
+		for (mul_div_t = 1; mul_div_t < mul_div_parts.size(); mul_div_t++)
+		{
+			if (mul_div_ops[mul_div_t-1] == '*')
+			{
+				logger->debugf (DEBUG_DETAILED, ": Mul %s\n", mul_div_parts[mul_div_t].c_str());
+				temp_value *= rollQueryParse (mul_div_parts[mul_div_t], &text_return);
+				*_roll_text += " *";
+				*_roll_text += text_return;
+			}
+			else
+			{
+				logger->debugf (DEBUG_DETAILED, ": Div %s\n", mul_div_parts[mul_div_t].c_str());
+				double parse_return = rollQueryParse (mul_div_parts[mul_div_t], &text_return);
+				if (parse_return != 0)
+				{
+					temp_value /= parse_return;
+					*_roll_text += " /";
+					*_roll_text += text_return;
+				}
+				else
+				{
+					*_roll_text = "Divid by zero";
+					return 0;
+				}
+			}
+		}
+		return temp_value;
+	}
+
+	return 0;
+}
+
+double rollQueryParse (std::string _query, std::string *_roll_text)
+{
+	logger->debugf (DEBUG_DETAILED, ": Parse %s\n", _query.c_str());
+	// Variables used in dice rolling
+	*_roll_text = "";
+	double result = 0;
+	uint8_t dice_limit = 20;
+	uint32_t num_of_dice = 1;
+	uint32_t type_of_dice = 6;
+	uint8_t discard_high = 0;
+	uint8_t discard_low = 0;
+	bool explode = false;
+	bool compound = false;
+
+	// Variables used to parse the roll
+	uint32_t t;
+	char field[10];
+	memset (field, 0, 32);
+	uint8_t field_count = 0;
+	bool found_dice = false;
+	bool found_type = false;
+	bool found_dl = false;
+	bool found_dh = false;
+	bool found_kl = false;
+	bool found_kh = false;
+	bool found_expl = false;
+	char c;
+
+	// Loop query
+	for (t = 0; t < _query.length(); t++)
+	{
+		c = _query.at(t);
+		field[field_count++] = c;
+
+		// We must wait until we've found the number of dice
+		if (!found_dice)
+		{
+			// Look for dice characture
+			if ((c == 'd') || (c == 'D'))
+			{
+				field[field_count] = 0;
+				field_count = 0;
+				// If this isn't the first characture, then set the number of dices, and check again limit
+				if (t != 0)
+				{
+					num_of_dice = strtol (field, NULL, 10);
+					if (num_of_dice > dice_limit)
+					{
+						num_of_dice = dice_limit;
+					}
+				}
+				found_dice = true;
+			}
+		}
+		// If we are waiting for the number of low dice to drop
+		else if (found_dl)
+		{
+			if ((!isdigit(c)) || (t == _query.length()-1))
+			{
+				field[field_count] = 0;
+				field_count = 0;
+				discard_low = strtol (field, NULL, 10);
+				found_dl = false;
+				t--;
+			}
+		}
+		// If we are waiting for the number of high dice to drop
+		else if (found_dh)
+		{
+			if ((!isdigit(c)) || (t == _query.length()-1))
+			{
+				field[field_count] = 0;
+				field_count = 0;
+				discard_high = strtol (field, NULL, 10);
+				found_dh = false;
+				t--;
+			}
+		}
+		// If we are waiting for the number of  low dice to keep
+		else if (found_kl)
+		{
+			if ((!isdigit(c)) || (t == _query.length()-1))
+			{
+				field[field_count] = 0;
+				field_count = 0;
+				discard_high = num_of_dice - strtol (field, NULL, 10);
+				found_kl = false;
+				t--;
+			}
+		}
+		// If we are waiting for the number of  high dice to keep
+		else if (found_kh)
+		{
+			if ((!isdigit(c)) || (t == _query.length()-1))
+			{
+				field[field_count] = 0;
+				field_count = 0;
+				discard_low = num_of_dice - strtol (field, NULL, 10);
+				found_kh = false;
+				t--;
+			}
+		}
+		else if (found_expl)
+		{
+			if ((c == '!') || (t == _query.length()-1))
+			{
+				compound = true;
+			}
+			found_expl = false;
+			t--;
+		}
+		else
+		{
+			// Look for drop characture
+			if ((c == 'd') || (c == 'D'))
+			{
+				if (!found_type)
+				{
+					field[field_count] = 0;
+					type_of_dice = strtol (field, NULL, 10);
+					found_type = true;
+				}
+				field_count = 0;
+
+				// Check if we are discarding highest or lower or if it's not defined
+				c = _query.at(t+1);
+				if ((c == 'h') || (c == 'H'))
+				{
+					found_dh = true;
+					t++;
+				}
+				else if ((c == 'l') || (c == 'L'))
+				{
+					found_dl = true;
+					t++;
+				}
+				else
+				{
+					found_dl = true;
+				}
+			}
+			// Look for keep characture
+			else if ((c == 'k') || (c == 'K'))
+			{
+				if (!found_type)
+				{
+					field[field_count] = 0;
+					field_count = 0;
+					type_of_dice = strtol (field, NULL, 10);
+					found_type = true;
+				}
+				field_count = 0;
+
+				// Check if we are keeping highest or lower or if it's not defined
+				c = _query.at(t+1);
+				if ((c == 'h') || (c == 'H'))
+				{
+					found_kh = true;
+					t++;
+				}
+				else if ((c == 'l') || (c == 'L'))
+				{
+					found_kl = true;
+					t++;
+				}
+				else
+				{
+					found_kh = true;
+				}
+			}
+			// Look for explode characture
+			else if (c == '!')
+			{
+				if (!found_type)
+				{
+					field[field_count] = 0;
+					type_of_dice = strtol (field, NULL, 10);
+					found_type = true;
+				}
+				field_count = 0;
+				explode = true;
+				found_expl = true;
+			}
+		}
+
+		// If we reach here and field_count is still 10, the query is bad
+		if (field_count >= 10)
+		{
+			*_roll_text = "Query field too long";
+			return 0;
+		}
+	}
+
+	// If we've reached here and haven't found the number of dice, then this is just a number
+	if (!found_dice)
+	{
+		result = strtod (_query.c_str(), NULL);
+		*_roll_text = " ";
+		*_roll_text += parseDouble(result);
+		return result;
+	}
+
+	// If we finish the query without finding the type of dice, the remainder should be the type of dice
+	if (!found_type)
+	{
+		field[field_count] = 0;
+		type_of_dice = strtol (field, NULL, 10);
+	}
+
+	// Debug
+	logger->debugf (DEBUG_DETAILED, ": DH, %d, DL, %d, Explode, %d, Compound, %d\n", discard_high, discard_low, explode, compound);
+
+	// Roll them bones
+	uint8_t bone;
+	std::vector<roll_data> rolls;
+	std::uniform_int_distribution<int> distribution(1, type_of_dice);
+	for (bone = 0; bone < num_of_dice; bone++)
+	{
+		// Create the data and roll the bone
+		uint32_t roll = distribution (dice);
+		roll_data data;
+
+		// If this dice should explode, then explode
+		if (explode)
+		{
+			// If we roll max, keep rolling until we done
+			while (roll == type_of_dice)
+			{
+				data.exploded = true;
+				data.roll += roll;
+				if (!compound)
+				{
+					data.text += std::to_string (roll);
+					data.text += "] [";
+				}
+				roll = distribution (dice);
+			}
+
+			// Dice is done exploding, finish calculating the total
+			data.roll += roll;
+			if (compound)
+			{
+				data.text += std::to_string (data.roll);
+			}
+			else
+			{
+				data.text += std::to_string (roll);
+			}
+			data.text += "]";
+		}
+		else
+		{
+			data.roll += roll;
+			data.text += std::to_string (roll);
+			data.text += "]";
+		}
+		rolls.push_back (data);
+	}
+
+	// Discard the lowest bones
+	uint8_t discard;
+	for (discard = 0; (discard < discard_low) && (discard < num_of_dice); discard++)
+	{
+		uint8_t dice_to_discard = 0;
+		uint32_t lowest_value = type_of_dice + 1;
+		for (t = 0; t < num_of_dice; t++)
+		{
+			if (rolls[t].roll < lowest_value)
+			{
+				if (!rolls[t].discarded)
+				{
+					dice_to_discard = t;
+					lowest_value = rolls[t].roll;
+				}
+			}
+		}
+		rolls[dice_to_discard].discarded = true;
+	}
+	// Discard the highest bones
+	for (discard = 0; (discard < discard_high) && (discard < num_of_dice); discard++)
+	{
+		uint8_t dice_to_discard = 0;
+		uint32_t highest_value = 0;
+		for (t = 0; t < num_of_dice; t++)
+		{
+			if (rolls[t].roll > highest_value)
+			{
+				if (!rolls[t].discarded)
+				{
+					dice_to_discard = t;
+					highest_value = rolls[t].roll;
+				}
+			}
+		}
+		rolls[dice_to_discard].discarded = true;
+	}
+
+	// Count up the bones
+	for (roll_data data : rolls)
+	{
+		if (data.exploded)
+		{
+			*_roll_text += " {";
+			if (data.discarded)
+			{
+				*_roll_text += "x";
+			}
+			else
+			{
+				result += data.roll;
+			}
+			*_roll_text += "[";
+			*_roll_text += data.text;
+			*_roll_text += "} ";
+		}
+		else
+		{
+			*_roll_text += " [";
+			if (data.discarded)
+			{
+				*_roll_text += "x";
+			}
+			else
+			{
+				result += data.roll;
+			}
+			*_roll_text += data.text;
+		}
+	}
+
+	return result;
 }
 
 // Hangles the SIGTERM signal, to safely close the program down

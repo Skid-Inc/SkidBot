@@ -58,7 +58,7 @@ extern Logger *logger;
 void *IRCThread (void *)
 {
 	char irc_recv[MAXDATAREAD];
-	uint32_t available; 
+	uint32_t available;
 
 	lock (irc_mutex);
 	while (irc_running)
@@ -146,7 +146,7 @@ void *IRCThread (void *)
 						irc_task = IRC_CLOSE;
 					}
 				}
-				
+
 				// Check if we have lost comms, no messages after 10 minutes (ping should be every 5)
 				if ((hrc_now - irc_timeout) > std::chrono::minutes(10))
 				{
@@ -162,7 +162,7 @@ void *IRCThread (void *)
 				send_command ("QUIT", "SkidBot");
 				close (irc_sock);
 				irc_sock = -1;
-				
+
 				irc_task = IRC_CONNECT;
 			}
 			break;
@@ -176,9 +176,9 @@ void *IRCThread (void *)
 	send_command ("PART", "Bye Bye ^^");
 	send_command ("QUIT", "SkidBot");
 	close (irc_sock);
-	
+
 	irc_recv_buffer.clear ();
-	
+
 	logger->log (" IRCThread: I've stopped the IRC thread.\n");
 
 	return NULL;
@@ -213,7 +213,7 @@ int send_command (std::string command, std::string data)
 	else
 	{
 		// TODO: Disable this debug message
-		logger->debugf (DEBUG_MINIMAL, " IRCThread: I sent: %s", message.c_str());
+		//logger->debugf (DEBUG_MINIMAL, " IRCThread: I sent: %s", message.c_str());
 	}
 
 	return command_return;
@@ -325,7 +325,7 @@ void *GIRCThread (void *)
 						girc_task = IRC_CLOSE;
 					}
 				}
-				
+
 				// Check if we have lost comms, no messages after 10 minutes (ping should be every 5)
 				if ((hrc_now - girc_timeout) > std::chrono::minutes(10))
 				{
@@ -341,7 +341,7 @@ void *GIRCThread (void *)
 				gsend_command ("QUIT", "SkidBot");
 				close (girc_sock);
 				girc_sock = -1;
-				
+
 				girc_task = IRC_CONNECT;
 			}
 			break;
@@ -355,9 +355,9 @@ void *GIRCThread (void *)
 	gsend_command ("PART", "Bye Bye ^^");
 	gsend_command ("QUIT", "SkidBot");
 	close (girc_sock);
-	
+
 	girc_recv_buffer.clear ();
-	
+
 	logger->log (" GIRCThread: I've stopped the groups IRC thread.\n");
 
 	return NULL;
@@ -392,7 +392,7 @@ int gsend_command (std::string command, std::string data)
 	else
 	{
 		// TODO: Disable this debug message
-		logger->debugf (DEBUG_MINIMAL, " GIRCThread: I sent on groups: %s", message.c_str());
+		//logger->debugf (DEBUG_MINIMAL, " GIRCThread: I sent on groups: %s", message.c_str());
 	}
 
 	return command_return;
