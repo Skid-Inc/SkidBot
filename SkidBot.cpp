@@ -491,6 +491,7 @@ int main(int argc, char **argv)
 										temp += ": ";
 										temp += roll_text;
 										temp += " = ";
+										temp += parseDouble(roll_result);
 										gsend_room ("#jtv", temp);
 									}
 								}
