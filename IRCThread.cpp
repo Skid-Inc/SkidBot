@@ -106,7 +106,7 @@ void *IRCThread (void *)
 				irc_return = send_command ("NICK", "SkidBot");
 				irc_return = send_command ("CAP REQ", ":twitch.tv/commands");
 				irc_return = send_command ("CAP REQ", ":twitch.tv/membership");
-				irc_return = send_command ("JOIN", "#n_skid11");
+				irc_return = send_command ("JOIN", "#skid_inc");
 
 				logger->log (" IRCThread: I've successfully authorised myself on the server.\n");
 				irc_task = IRC_RUNNING;
