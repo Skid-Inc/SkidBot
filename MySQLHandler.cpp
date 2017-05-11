@@ -2,8 +2,8 @@
 #include <stdarg.h>
 #include <string.h>
 #include <pthread.h>
-#include <errmsg.h>
-#include <mysql.h>
+#include <mysql/errmsg.h>
+#include <mysql/mysql.h>
 #include <unistd.h>
 
 #include "MySQLHandler.hpp"

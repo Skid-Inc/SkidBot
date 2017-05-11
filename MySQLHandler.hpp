@@ -2,7 +2,7 @@
 #define _MYSQL_HANDLER_H
 
 #include <pthread.h>
-#include <mysql.h>
+#include <mysql/mysql.h>
 #include "Logger.hpp"
 
 // Global function prototypes
