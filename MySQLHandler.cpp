@@ -2,8 +2,9 @@
 #include <stdarg.h>
 #include <string.h>
 #include <pthread.h>
-#include <mysql/errmsg.h>
-#include <mysql/mysql.h>
+#include <errmsg.h>
+#include <mysql.h>
+#include <unistd.h>
 
 #include "MySQLHandler.hpp"
 #include "SkidBot.hpp"
@@ -52,7 +53,7 @@ void MySQLHandler::setLogger (Logger *new_logger)
  */
 int MySQLHandler::mysqlConnect (void)
 {
-	logger->debug (DEBUG_STANDARD, " MYSQL DEBUG 2: mysqlConnect called.\n");
+	logger->debug (DEBUG_STANDARD, " MYSQL: mysqlConnect called.\n");
 
 	lock (mysql_mutex);
 
@@ -87,7 +88,7 @@ int MySQLHandler::mysqlConnect (void)
  */
 void MySQLHandler::mysqlDisconnect (void)
 {
-	logger->debug (DEBUG_STANDARD, " MYSQL DEBUG 2: mysqlDisconnect called.\n");
+	logger->debug (DEBUG_STANDARD, " MYSQL: mysqlDisconnect called.\n");
 
 	lock (mysql_mutex);
 
@@ -109,35 +110,56 @@ MYSQL_RES* MySQLHandler::mysqlQuery (const char *format, ...)
 	lock (query_mutex);
 
 	// Check to make sure we have a connection and then perform the query
-	if (connection)
+	if (!connection)
 	{
-		// Builds the query
-		va_list args;
-		va_start (args, format);
-		
-		char query[512];
-		memset (query, 0, strlen (query));
-		vsnprintf (query, 512, format, args);
-		
-		MYSQL_RES* temp_result_set;
+		logger->debug (DEBUG_MINIMAL, " MYSQL: Warning, connection not ready at start of query.\n");
 
-		logger->debugf (DEBUG_DETAILED, " MYSQL DEBUG 3: mysqlQuery called with, %s.\n", query);
-
-		lock (mysql_mutex);
-		if (mysql_query (connection, query))
+		// Try to reconnect
+		mysqlDisconnect ();
+		mysqlConnect ();
+		if (connection == NULL)
 		{
-			logger->debugf (DEBUG_MINIMAL, " MYSQL DEBUG 1: Query failed, %s.\n", mysql_error (connection));
+			logger->log (" MYSQL: Failed to reconnect after a query was made without a connection ready to start with.");
+			release (query_mutex);
 
-			// If the server has disconnected, reconnect and try again
-			if ((mysql_errno (connection) == CR_SERVER_GONE_ERROR) || (mysql_errno (connection) == CR_SERVER_LOST))
+			return NULL;
+		}
+	}
+
+	// Builds the query
+	va_list args;
+	va_start (args, format);
+
+	vsnprintf (query, 10240, format, args);
+
+	MYSQL_RES* temp_result_set;
+
+	logger->debugf (DEBUG_DETAILED, " MYSQL: mysqlQuery called with, %s.\n", query);
+
+	lock (mysql_mutex);
+	if (mysql_query (connection, query))
+	{
+		logger->debugf (DEBUG_MINIMAL, " MYSQL: Query failed, %s.\n", mysql_error (connection));
+
+		// If the server has disconnected, reconnect and try again
+		if ((mysql_errno (connection) == CR_SERVER_GONE_ERROR) || (mysql_errno (connection) == CR_SERVER_LOST))
+		{
+			release (mysql_mutex);
+			mysqlDisconnect ();
+			mysqlConnect ();
+			lock (mysql_mutex);
+			// If we failed to connect, wait a second and try one last time
+			if (connection == NULL)
 			{
+				sleep (1);
 				release (mysql_mutex);
-				mysqlDisconnect ();
 				mysqlConnect ();
 				lock (mysql_mutex);
-				if (mysql_query (connection, query))
+
+				// If we still failed to connect drop out
+				if (connection == NULL)
 				{
-					logger->debugf (DEBUG_MINIMAL, " MYSQL DEBUG 1: Query failed again after reconnect, %s.\n", mysql_error (connection));
+					logger->log (" MYSQL: Failed to connect twice while running a query, dropping query.\n");
 					va_end(args);
 					release (mysql_mutex);
 					release (query_mutex);
@@ -145,8 +167,11 @@ MYSQL_RES* MySQLHandler::mysqlQuery (const char *format, ...)
 					return NULL;
 				}
 			}
-			else
+
+			// Otherwise try the query again
+			if (mysql_query (connection, query))
 			{
+				logger->debugf (DEBUG_MINIMAL, " MYSQL: Query failed again after reconnect, %s.\n", mysql_error (connection));
 				va_end(args);
 				release (mysql_mutex);
 				release (query_mutex);
@@ -154,20 +179,33 @@ MYSQL_RES* MySQLHandler::mysqlQuery (const char *format, ...)
 				return NULL;
 			}
 		}
+		else
+		{
+			va_end(args);
+			release (mysql_mutex);
+			release (query_mutex);
 
-		temp_result_set = mysql_store_result (connection);
-
-		va_end(args);
-		release (mysql_mutex);
-		release (query_mutex);
-
-		return temp_result_set;
+			return NULL;
+		}
 	}
-	else
-	{
-		release (query_mutex);
-		logger->log (" MYSQL: Failed to perform the query because there was no connection.\n");
 
-		return NULL;
-	}
+	temp_result_set = mysql_store_result (connection);
+
+	va_end(args);
+	release (mysql_mutex);
+	release (query_mutex);
+
+	return temp_result_set;
+}
+
+
+/**
+ * Returns how many rows the last query affected
+ */
+unsigned long long MySQLHandler::mysqlAffectedRows (void)
+{
+	lock (mysql_mutex);
+	unsigned long long affected_rows = mysql_affected_rows(connection);;
+	release (mysql_mutex);
+	return affected_rows;
 }

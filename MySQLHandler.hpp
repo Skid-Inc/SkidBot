@@ -2,7 +2,7 @@
 #define _MYSQL_HANDLER_H
 
 #include <pthread.h>
-#include <mysql/mysql.h>
+#include <mysql.h>
 #include "Logger.hpp"
 
 // Global function prototypes
@@ -22,6 +22,7 @@ private:
 	pthread_mutex_t mysql_mutex = PTHREAD_MUTEX_INITIALIZER;
 	pthread_mutex_t query_mutex = PTHREAD_MUTEX_INITIALIZER;
 	Logger *logger;
+	char query[10240];
 
 	// Private methods
 
@@ -35,6 +36,7 @@ public:
 	int mysqlConnect (void);
 	void mysqlDisconnect (void);
 	MYSQL_RES* mysqlQuery (const char *format, ...);
+	unsigned long long mysqlAffectedRows (void);
 
 };
 
