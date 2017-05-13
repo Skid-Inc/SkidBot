@@ -18,6 +18,9 @@
 #include <random>
 #include <boost/regex.hpp>
 #include <boost/algorithm/string.hpp>
+#include <iostream>
+#include <fstream>
+#include <locale>
 
 #include "SkidBot.hpp"
 #include "Logger.hpp"
@@ -28,6 +31,7 @@
 #define VERSION "0.31"
 
 // Local function prototypes
+void readConfig (void);
 std::string trim (std::string _str);
 std::string parseDouble (double _value);
 double rollQuerySplitSubAdd (std::string _query, std::string *_roll_text);
@@ -49,6 +53,9 @@ extern bool irc_running;
 extern pthread_mutex_t irc_mutex;
 extern bool tapi_running;
 extern pthread_mutex_t tapi_mutex;
+extern std::string bot_user;
+extern std::string bot_oauth;
+extern std::string default_room;
 
 // Data stores
 std::vector<std::string> users_chatted;		// Holds a list of users that have chatted in the stream
@@ -120,13 +127,16 @@ int main(int argc, char **argv)
 	// Starts the MySQL Handler
 	mysql = new MySQLHandler (logger);
 
+	// Create configuration file
+	readConfig ();
+
 	// Creates the irc thread
-	logger->log (": I'm starting my IRC thread so I can connect to twitch.\n");
+	logger->log (": I'm starting my IRC thread so I can connect to Twitch.\n");
 	pthread_create (&irc_thread, NULL, IRCThread, NULL);
 	sleep (2);
 
 	// Creates the groups irc thread
-	logger->log (": I'm starting my groups IRC thread so I can connect to twitch.\n");
+	logger->log (": I'm starting my groups IRC thread so I can connect to Twitch.\n");
 	pthread_create (&girc_thread, NULL, GIRCThread, NULL);
 	sleep (2);
 
@@ -686,6 +696,105 @@ int main(int argc, char **argv)
 	delete logger;
 
 	return 0;
+}
+
+// Reads the configuration and sets the default user details
+void readConfig (void)
+{
+	logger->log (": Attempting to read my configuration file.\n");
+
+	// Create the temporary variables
+	std::string db_user;
+	std::string db_pass;
+	std::string db_name;
+	std::string new_user = "bot_username";
+	std::string new_oauth = "oauth:bot_oauth";
+	std::string new_room = "#target_room";
+
+	// Open the configuration file
+	std::ifstream conf_file ("./SkidBot.cfg", std::ios::in);
+	// If file has successfully opened, and is readable
+	if (conf_file.is_open())
+	{
+		while (conf_file.good())
+		{
+			// Get the next, and process it so long as it isn't empty or we haven't reached the end of the file
+			std::string line;
+			getline (conf_file, line);
+			if ((!conf_file.eof()) || (line.length() != 0))
+			{
+				// Check to see if the line has an equals, and split
+				std::size_t split = line.find ("=");
+				if (split != std::string::npos)
+				{
+					std::string parameter = trim (line.substr(0, split));
+					std::string value = trim (line.substr(split + 1));
+					logger->debugf (DEBUG_DETAILED, ": Parameter: %s, Value: %s\n", parameter.c_str(), value.c_str());
+
+					// Process the parameter into the correct variable
+					if (parameter.compare("Twitch Username") == 0)
+					{
+						std::locale loc;
+						char buffer[value.length()+1];
+						memset (buffer, 0, value.length()+1);
+						for (uint16_t t = 0; t < value.length(); t++)
+						{
+							buffer[t] = std::tolower (value[t], loc);
+						}
+						new_user = buffer;
+						logger->debugf (DEBUG_DETAILED, ": Setting bot_user to %s\n", new_user.c_str());
+					}
+					else if (parameter.compare("Twitch OAuth") == 0)
+					{
+						new_oauth = value;
+						logger->debugf (DEBUG_DETAILED, ": Setting bot_oauth to %s\n", new_oauth.c_str());
+					}
+					else if (parameter.compare("Default Room") == 0)
+					{
+						std::locale loc;
+						char buffer[value.length()+1];
+						memset (buffer, 0, value.length()+1);
+						for (uint16_t t = 0; t < value.length(); t++)
+						{
+							buffer[t] = std::tolower (value[t], loc);
+						}
+						new_room = buffer;
+						logger->debugf (DEBUG_DETAILED, ": Setting default_room to %s\n", new_room.c_str());
+					}
+					else if (parameter.compare("MySQL Username") == 0)
+					{
+						db_user = value;
+						logger->debugf (DEBUG_DETAILED, ": Setting db_user to %s\n", db_user.c_str());
+					}
+					else if (parameter.compare("MySQL Password") == 0)
+					{
+						db_pass = value;
+						logger->debugf (DEBUG_DETAILED, ": Setting db_pass to %s\n", db_pass.c_str());
+					}
+					else if (parameter.compare("MySQL Database") == 0)
+					{
+						db_name = value;
+						logger->debugf (DEBUG_DETAILED, ": Setting db_name to %s\n", db_name.c_str());
+					}
+				}
+			}
+		}
+	}
+	else
+	{
+		logger->logf (": Unable to find or read the configuration file, powering down, reason: %s\n", strerror(errno));
+	}
+	logger->log (": Configuration file read, attempting to the initalised my MySQL Handler.\n");
+
+	// Initaliser the MySQLHandler
+	mysql->init (db_user, db_pass, db_name);
+
+	logger->log (": Configuring my IRC settings.\n");
+
+	// Set the twitch IRC variables
+	bot_user = new_user;
+	bot_oauth = new_oauth;
+	default_room = new_room;
 }
 
 // Strips whitespace from the begining and end of the string

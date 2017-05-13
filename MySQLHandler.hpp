@@ -23,6 +23,9 @@ private:
 	pthread_mutex_t query_mutex = PTHREAD_MUTEX_INITIALIZER;
 	Logger *logger;
 	char query[10240];
+	std::string db_user = "root";
+	std::string db_pass = "root";
+	std::string db_name = "db";
 
 	// Private methods
 
@@ -33,6 +36,7 @@ public:
 
 	// Public methods
 	void setLogger (Logger *new_logger);
+	int init (std::string _db_user, std::string _db_pass, std::string _db_name);
 	int mysqlConnect (void);
 	void mysqlDisconnect (void);
 	MYSQL_RES* mysqlQuery (const char *format, ...);

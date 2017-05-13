@@ -49,6 +49,11 @@ std::chrono::high_resolution_clock::time_point girc_timeout;
 
 std::deque<std::string> girc_recv_buffer (20);
 
+// Holds the Twitch username and OAuth of the bot user account, and the room to connect to by default
+std::string bot_user = "bot_username";
+std::string bot_oauth = "oauth:bot_oauth";
+std::string default_room = "#target_room";
+
 extern Logger *logger;
 
 
@@ -101,12 +106,11 @@ void *IRCThread (void *)
 
 			case (IRC_AUTH):
 			{
-				irc_return = send_command ("PASS", "oauth:1234567890");
-				irc_return = send_command ("USER", "SkidBot 0 0 :NathanSkidmore");
-				irc_return = send_command ("NICK", "SkidBot");
+				irc_return = send_command ("PASS", bot_oauth.c_str());
+				irc_return = send_command ("NICK", bot_user.c_str());
 				irc_return = send_command ("CAP REQ", ":twitch.tv/commands");
 				irc_return = send_command ("CAP REQ", ":twitch.tv/membership");
-				irc_return = send_command ("JOIN", "#skid_inc");
+				irc_return = send_command ("JOIN", default_room.c_str());
 
 				logger->log (" IRCThread: I've successfully authorised myself on the server.\n");
 				irc_task = IRC_RUNNING;
@@ -282,9 +286,8 @@ void *GIRCThread (void *)
 
 			case (IRC_AUTH):
 			{
-				girc_return = gsend_command ("PASS", "oauth:1234567890");
-				girc_return = gsend_command ("USER", "SkidBot 0 0 :NathanSkidmore");
-				girc_return = gsend_command ("NICK", "SkidBot");
+				girc_return = gsend_command ("PASS", bot_oauth.c_str());
+				girc_return = gsend_command ("NICK", bot_user.c_str());
 				girc_return = gsend_command ("JOIN", "#jtv");
 				girc_return = gsend_command ("CAP REQ", ":twitch.tv/commands");
 

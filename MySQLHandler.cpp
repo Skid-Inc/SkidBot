@@ -21,8 +21,7 @@ MySQLHandler::MySQLHandler (Logger *new_logger)
 	query_mutex = PTHREAD_MUTEX_INITIALIZER;
 	logger = new_logger;
 
-	logger->log (" MYSQL: Object created, attempting to connect.\n");
-	mysqlConnect ();
+	logger->log (" MYSQL: Object created.\n");
 }
 
 
@@ -49,6 +48,21 @@ void MySQLHandler::setLogger (Logger *new_logger)
 
 
 /**
+ * Configures the MySQLHandler, and attempts to connect
+ */
+int MySQLHandler::init (std::string _db_user, std::string _db_pass, std::string _db_name)
+{
+	db_user = _db_user;
+	db_pass = _db_pass;
+	db_name = _db_name;
+
+	logger->log (" MYSQL: Object initalised, attempting to connect.\n");
+
+	return mysqlConnect ();
+}
+
+
+/**
  * Connect to the MySQL database
  */
 int MySQLHandler::mysqlConnect (void)
@@ -66,7 +80,7 @@ int MySQLHandler::mysqlConnect (void)
 	}
 
 	// Attempts to connect to the database
-	connection = mysql_real_connect (connection, "localhost", "USER", "PASS", "DATABASE", 0, NULL, 0);
+	connection = mysql_real_connect (connection, "localhost", db_user.c_str(), db_pass.c_str(), db_name.c_str(), 0, NULL, 0);
 	if (connection)
 	{
 		logger->log (" MYSQL: MySQL connection successful.\n");
