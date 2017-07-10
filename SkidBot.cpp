@@ -74,7 +74,7 @@ extern std::string current_game;
 
 // Random variables
 std::random_device dice;
-std::string game_master = "skid_inc";
+std::string game_master = "skidinc";
 
 int main(int argc, char **argv)
 {
@@ -254,18 +254,18 @@ int main(int argc, char **argv)
 									if (words.size() > 0)
 									{
 										// Check any for any fixed commands
-										if ((user.compare("skid_inc") == 0) && (boost::iequals(words[0], "respond")))
+										if ((user.compare("skidinc") == 0) && (boost::iequals(words[0], "respond")))
 										{
 											logger->log (": Responding to my master. :)\n");
 											send_room (room, "Yes Master? :)");
 										}
-										else if ((user.compare("skid_inc") == 0) && (boost::iequals(chat_remainder, "please leave")))
+										else if ((user.compare("skidinc") == 0) && (boost::iequals(chat_remainder, "please leave")))
 										{
 											logger->log (": Leaving by my masters request. :(\n");
 											send_room (room, "OK, I'm going now, bye bye. :(");
 											send_command ("PART", room);
 										}
-										else if ((user.compare("skid_inc") == 0) && (boost::iequals(words[0], "panic")))
+										else if ((user.compare("skidinc") == 0) && (boost::iequals(words[0], "panic")))
 										{
 											logger->log (": Something has gone wrong, sending SIGTERM to my own process. :S\n");
 											send_room (room, "Something has gone wrong, sending SIGTERM to my own process. panicBasket");
@@ -352,13 +352,13 @@ int main(int argc, char **argv)
 										}
 
 										// Spoiler note
-										if ((user.compare("skid_inc") == 0) && (boost::iequals(chat_remainder, "no spoilers start")))
+										if ((user.compare("skidinc") == 0) && (boost::iequals(chat_remainder, "no spoilers start")))
 										{
 											logger->logf (": Starting to post no spoiler messages. :)\n");
 											send_room (room, "Acknowledged, starting to post no spoiler messages every 5 minutes. :)");
 											no_spoilers_running = true;
 										}
-										if ((user.compare("skid_inc") == 0) && (boost::iequals(chat_remainder, "no spoilers stop")))
+										if ((user.compare("skidinc") == 0) && (boost::iequals(chat_remainder, "no spoilers stop")))
 										{
 											logger->logf (": I will no longer post no spoiler messages. :)\n");
 											send_room (room, "Acknowledged, I will no longer post no spoiler messages. :)");
@@ -366,7 +366,7 @@ int main(int argc, char **argv)
 										}
 
 										// Change the game master
-										if ((user.compare("skid_inc") == 0) && ((boost::iequals(words[0], "change")) || (boost::iequals(words[0], "set"))) && ((boost::iequals(words[1], "gm")) || (boost::iequals(words[1], "dm"))))
+										if ((user.compare("skidinc") == 0) && ((boost::iequals(words[0], "change")) || (boost::iequals(words[0], "set"))) && ((boost::iequals(words[1], "gm")) || (boost::iequals(words[1], "dm"))))
 										{
 											uint8_t target_word = 2;
 											if (boost::iequals(words[2], "to"))
@@ -380,7 +380,7 @@ int main(int argc, char **argv)
 											message += ". :)";
 											send_room (room, message);
 										}
-										else if ((user.compare("skid_inc") == 0) && (boost::iequals(words[0], "who")) && ((boost::iequals(words.back(), "gm")) || (boost::iequals(words.back(), "dm"))))
+										else if ((user.compare("skidinc") == 0) && (boost::iequals(words[0], "who")) && ((boost::iequals(words.back(), "gm")) || (boost::iequals(words.back(), "dm"))))
 										{
 											logger->logf (": Reporting that the current game master is %s.\n", game_master.c_str());
 											std::string message = "The currently assigned game master is ";
@@ -390,7 +390,7 @@ int main(int argc, char **argv)
 										}
 									}
 								}
-								else if ((user.compare("skid_inc") == 0) && (boost::iequals(chat, "Good SkidBot")))
+								else if ((user.compare("skidinc") == 0) && (boost::iequals(chat, "Good SkidBot")))
 								{
 									logger->log (": My master praised me ^_^.\n");
 									send_room (room, "^_^");
@@ -535,13 +535,13 @@ int main(int argc, char **argv)
 						send_command ("PONG", message.substr(5));
 					}
 
-					// Check for user mode change message	// :jtv MODE #skid_inc +o paulscelus
+					// Check for user mode change message	// :jtv MODE #skidinc +o paulscelus
 					else if ((message.length() > 9) && (message.substr(5, 4).compare("MODE") == 0))
 					{
 						logger->debug (DEBUG_MINIMAL, ": I've found a MODE change for user.\n");
 					}
 
-					// Check for user list message			// :skidbot.tmi.twitch.tv 353 skidbot = #skid_inc :arceusthepokemon wolf7th martinferrer ixtapa_ verenthes greenplane htbrdd ebula_viruss turkz813 jachunter guntherdw conjur0 dcirusc30 poewinter gone_nutty ptx3 loganfxcrafter strayparaSkidBot: I received: t = #zeekdageek :skidbot
+					// Check for user list message			// :skidbot.tmi.twitch.tv 353 skidbot = #skidinc :arceusthepokemon wolf7th martinferrer ixtapa_ verenthes greenplane htbrdd ebula_viruss turkz813 jachunter guntherdw conjur0 dcirusc30 poewinter gone_nutty ptx3 loganfxcrafter strayparaSkidBot: I received: t = #zeekdageek :skidbot
 					else if ((message.length() > 37) && (message.substr(0, 37).compare(":skidbot.tmi.twitch.tv 353 skidbot = ") == 0))
 					{
 						logger->logf (": I've found the channels NAMES list.\n");
@@ -558,7 +558,7 @@ int main(int argc, char **argv)
 					// Check for join and part messages
 					else
 					{
-						// Check for user join message			// :skid_inc!skid_inc@skid_inc.tmi.twitch.tv JOIN #skid_inc
+						// Check for user join message			// :skidinc!skidinc@skidinc.tmi.twitch.tv JOIN #skidinc
 						cmd_location = message.find ("JOIN");
 						if (cmd_location != std::string::npos)
 						{
@@ -577,7 +577,7 @@ int main(int argc, char **argv)
 						}
 						else
 						{
-							// Check for user part message			// :skid_inc!skid_inc@skid_inc.tmi.twitch.tv PART #skid_inc
+							// Check for user part message			// :skidinc!skidinc@skidinc.tmi.twitch.tv PART #skidinc
 							cmd_location = message.find ("PART");
 							if (cmd_location != std::string::npos)
 							{
@@ -638,7 +638,7 @@ int main(int argc, char **argv)
 				if ((current_time - no_spoilers) > std::chrono::minutes(5))
 				{
 					logger->log (": Posting no spoilers message.\n");
-					send_room ("#skid_inc", "My master would like to do his first run blind, so please no spoilers or hints etc, thank you :)");
+					send_room ("#skidinc", "My master would like to do his first run blind, so please no spoilers or hints etc, thank you :)");
 					no_spoilers = current_time;
 				}
 			}
